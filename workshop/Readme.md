@@ -28,7 +28,7 @@ All the artifacts defined in the artifacts repo will be published in a storage a
      Add-Azaccount
      "dev","prod"|Foreach-Object {
         $rg = new-AzResourceGroup -resourcegroupname "rg-$($_)-automation"-location 'west europe'
-        $deploy = new-azresourcegroupdeployment -resourcegroup $rg.ResourceGroupName -templateFile .\artifacts\templates\resourcegroup\Storage-Account.json -storageAccountNamePrefix 'devops' -verbose
+        $deploy = New-AzResourceGroupDeployment -resourcegroup $rg.ResourceGroupName -templateFile .\artifacts\templates\resourcegroup\StorageAccount.json -storageAccountNamePrefix 'devops' -verbose
         # Output names & key     
         Write-Output "$($_) storage account name: "
         $deploy.outputs.storageAccountName.value 
@@ -38,7 +38,7 @@ All the artifacts defined in the artifacts repo will be published in a storage a
 
 ***Copy these value for storageAccount and masterKey*** as these will be stored as ***secrets*** in Github and used by the pipelines to publish the artifacts & do the deployments. 
 
-## Create secrets and update variables (Github)
+## 4. Create Storage Accounts secrets and update variables (Github)
 1. Create secrets
 - On GitHub, navigate to the main page of the repository. 
 - Under your repository name, click on the "Settings" tab. 
@@ -47,35 +47,43 @@ All the artifacts defined in the artifacts repo will be published in a storage a
 
 [![Create Github secret](../images/secret.png)](#)
 
-- Add two github secrets: AZURE_DEPLOYMENT_STORAGE_SAS_DEV and AZURE_DEPLOYMENT_STORAGE_SAS_PROD with the respective masterKey values
+- Add two github secrets for the storage accounts name
+    - Secretname: AZURE_STORAGE_ACCOUNT_DEV and AZURE_STORAGE_ACCOUNT_PROD with the respective storage accounts names
+
+- Add two github secrets for the storage accounts SAS keys 
+    - Secretname: AZURE_DEPLOYMENT_STORAGE_SAS_DEV and AZURE_DEPLOYMENT_STORAGE_SAS_PROD with the respective masterKey values
 
 2. Update the workflows 
 
+*** Note *** This step is needed only if you are using other secretnames for storage accounts.
+
 Replace the value for storageAccountName and paste your value for the following workflows:
 
+    - Publish-Artifacts-To-AzureStorage
+    - Test-And-Upload-Dev-Artifacts
     - Deploy-All-Customers
     - Deploy-Contoso
     - Deploy-Fabrikam
 
-- Add two github secrets 
-    - Secretname: AZURE_DEPLOYMENT_STORAGE_SAS_DEV and AZURE_DEPLOYMENT_STORAGE_SAS_PROD with the respective masterKey values
 
-## Create SPN and add as secret to Github (actions)
+## 5. Create SPN and add as secret to Github (actions)
 
-### Create SPN (User Access Administrator)
+### 1. Create SPN (User Access Administrator)
 Instructions for how to create an SPN for deployments in customer tenant.
 
 From Azure CLI:
 
     az ad sp create-for-rbac --name "DevOpsGlobalAdmin" --role 'Owner' --sdk-auth
+    
+    $spn = Get-AzADServicePrincipal -DisplayName "DevOpsGlobalAdmin" 
 
     As a recommendation, include the SPN in the Lighthouse offer for your customers. In this way, the SPN will have access to all the delegated resources and can be used to do the deployments across multiple customers at once, with one identity access. 
 
     You might want to give this SPN User Access Administrator as well to elevate privileges for certain deployments
     You can achieve this by elevating the User Access Administrator and Owner to root level. 
 
-    New-AzRoleAssignment -ApplicationId '<appId>' -RoleDefinitionName 'User Access Administrator' -Scope /
-    New-AzRoleAssignment -ApplicationId '<appID' -RoleDefinitionName 'Owner' -Scope /
+    New-AzRoleAssignment -ApplicationId $spn.ApplicationId -RoleDefinitionName 'User Access Administrator' -Scope /
+    New-AzRoleAssignment -ApplicationId $spn.ApplicationId -RoleDefinitionName 'Owner' -Scope /
     
     Your output will be something like this - copy and paste the entire string 
 
@@ -93,13 +101,14 @@ From Azure CLI:
     }
 Copy the entire json string as this will be stored as a secret in Github.                 
 
-### Create secret for customer deployment
+### 2. Create secret for customer deployment
 Create a secret called AZURE_SUBSCRIPTION_CREDENTIAL and paste the value from previous step.
+
 *** Note *** When managing multiple customers - replace _SUBSCRIPTION_ with Customername instead. E.g AZURE_CONTOSO_CREDENTIAL - and make sure to refer the right credential in the customer pipeline.
 
 [Github secrets](https://github.com/Azure/actions-workflow-samples/blob/master/assets/create-secrets-for-GitHub-workflows.md)
 
-### Create SPN for Lighthouse management & automation
+### 3. Create SPN for Lighthouse management & automation
 Repeat the 2 last steps - but create the Lighthouse SPN that you will use for automation for managing customers through Lighthouse. Call the secret AZURE_LIGHTHOUSE_CREDENTIAL in Github actions and paste the value.
 
 ## Build your first repeatable building block 

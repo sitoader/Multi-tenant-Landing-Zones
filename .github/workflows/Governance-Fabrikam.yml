@@ -33,8 +33,11 @@ jobs:
       with:
         repository: ${{github.repository}}.wiki    # specify the wiki repo name here.
         path: wiki
-    - name: Login to Azure with Powershell
-      run: ./main/src/platform-automation/platform-scripts/Login-WithSecretString.ps1 -secretJson '${{ env.customerDeploymentCredential }}' -verbose         
+    - name: Azure Login
+      uses: Azure/login@v1
+      with:
+        # Paste output of `az ad sp create-for-rbac` as value of secret variable: AZURE_CREDENTIALS
+        creds: ${{env.customerDeploymentCredential}}           
     - name: Install Azure resource graph
       run: |
           Install-Module -Name Az.ResourceGraph -Force

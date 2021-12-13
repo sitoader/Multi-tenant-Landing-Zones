@@ -24,9 +24,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v1     
-    - name: Login to Azure with Powershell
-      run: ./src/platform-automation/platform-scripts/Login-WithSecretString.ps1 -secretJson '${{ env.customerDeploymentCredential }}' -verbose         
-
+    - name: Azure Login
+      uses: Azure/login@v1
+      with:
+        # Paste output of `az ad sp create-for-rbac` as value of secret variable: AZURE_CREDENTIALS
+        creds: ${{env.customerDeploymentCredential}}     
     - name: Run deployment with verbose output
       run: ./src/platform-automation/platform-scripts/Deploy-Customer.ps1 -customer "fabrikam"  -storageAccountName '${{ env.storageAccountName }}' -storageAccountKey '${{ env.storageAccountKey }}' -verbose         
       

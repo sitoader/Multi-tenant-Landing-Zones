@@ -21,8 +21,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2          
-    - name: Login to Azure with Powershell
-      run: ./src/platform-automation/platform-scripts/Login-WithSecretString.ps1 -secretJson '${{ env.partnerCenterCredential }}' -verbose         
+    - name: Azure Login
+      uses: Azure/login@v1
+      with:
+        # Paste output of `az ad sp create-for-rbac` as value of secret variable: AZURE_CREDENTIALS
+        creds: ${{env.partnerCenterCredential}}       
     - name: Install Azure resource graph and partner center SDK
       run: |
           Install-Module -Name Az.ResourceGraph -Force
